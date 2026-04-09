@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-effect {
+            background:black);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-pink-300 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full glass-effect rounded-3xl shadow-2xl p-8">
+        <header class="text-center mb-8">
+            <h2 class="text-3xl font-700 text-slate-800 tracking-tight">Expense Tracker</h2>
+            <p class="text-slate-500 text-sm">Manage your finances effortlessly</p>
+        </header>
+
+        <div class="bg-pink-600 rounded-2xl p-6 text-white mb-6 shadow-lg shadow-pink-100">
+            <p class="text-indigo-100 text-sm uppercase tracking-wider font-semibold">Current Balance</p>
+            <h1 id="balance" class="text-4xl font-bold mt-1">$0.00</h1>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="bg-pink-100 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-green-100 text-green-600 p-1 rounded-full text-xs">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </span>
+                    <span class="text-xs text-slate-500 font-bold uppercase">Income</span>
+                </div>
+                <p id="money-plus" class="text-lg font-bold text-green-600">+$0.00</p>
+            </div>
+            <div class="bg-pink-100 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-red-100 text-red-600 p-1 rounded-full text-xs">
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </span>
+                    <span class="text-xs text-slate-500 font-bold uppercase">Expense</span>
+                </div>
+                <p id="money-minus" class="text-lg font-bold text-red-600">-$0.00</p>
+            </div>
+        </div>
+
+        <section class="mb-8">
+            <h3 class="text-slate-800 font-bold mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-plus-circle text-indigo-500"></i> New Transaction
+            </h3>
+            <form id="form" class="space-y-3">
+                <input type="text" id="text" placeholder="Description (e.g., Coffee)" 
+                    class="w-full px-4 py-3 rounded-xl border border-pink-100 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all">
+                <input type="number" id="amount" placeholder="Amount (- for expense)" 
+                    class="w-full px-4 py-3 rounded-xl border border-pink-100 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all">
+                <button class="w-full bg-blue-900 text-white font-bold py-3 rounded-xl hover:bg-pink-100 transform hover:-translate-y-0.5 transition-all shadow-md">
+                    Add Transaction
+                </button>
+            </form>
+        </section>
+
+        <section>
+            <h3 class="text-slate-800 font-bold mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> History
+            </h3>
+            <ul id="list" class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                </ul>
+        </section>
+    </div>
+
+    <script>
+        const balance = document.getElementById('balance');
+        const money_plus = document.getElementById('money-plus');
+        const money_minus = document.getElementById('money-minus');
+        const list = document.getElementById('list');
+        const form = document.getElementById('form');
+        const text = document.getElementById('text');
+        const amount = document.getElementById('amount');
+
+        const localStorageTransactions = JSON.parse(localStorage.getItem('transactions'));
+        let transactions = localStorage.getItem('transactions') !== null ? localStorageTransactions : [];
+
+        function addTransaction(e) {
+            e.preventDefault();
+            if (text.value.trim() === '' || amount.value.trim() === '') return;
+
+            const transaction = {
+                id: Math.floor(Math.random() * 100000000),
+                text: text.value,
+                amount: +amount.value
+            };
+
+            transactions.push(transaction);
+            addTransactionDOM(transaction);
+            updateValues();
+            updateLocalStorage();
+            text.value = '';
+            amount.value = '';
+        }
+
+        function addTransactionDOM(transaction) {
+            const isExpense = transaction.amount < 0;
+            const item = document.createElement('li');
+
+            item.className = `flex justify-between items-center p-4 rounded-xl border-l-4 shadow-sm bg-white transition-all hover:scale-[1.02] ${isExpense ? 'border-red-500' : 'border-green-500'}`;
+            
+            item.innerHTML = `
+                <span class="font-medium text-slate-700">${transaction.text}</span>
+                <div class="flex items-center gap-3">
+                    <span class="font-bold ${isExpense ? 'text-red-500' : 'text-green-500'}">
+                        ${isExpense ? '-' : '+'}$${Math.abs(transaction.amount)}
+                    </span>
+                    <button onclick="removeTransaction(${transaction.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            `;
+            list.appendChild(item);
+        }
+
+        function updateValues() {
+            const amounts = transactions.map(t => t.amount);
+            const total = amounts.reduce((acc, item) => (acc += item), 0).toFixed(2);
+            const income = amounts.filter(item => item > 0).reduce((acc, item) => (acc += item), 0).toFixed(2);
+            const expense = (amounts.filter(item => item < 0).reduce((acc, item) => (acc += item), 0) * -1).toFixed(2);
+
+            balance.innerText = `$${total}`;
+            money_plus.innerText = `+$${income}`;
+            money_minus.innerText = `-$${expense}`;
+        }
+
+        function removeTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            updateLocalStorage();
+            init();
+        }
+
+        function updateLocalStorage() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+        }
+
+        function init() {
+            list.innerHTML = '';
+            transactions.forEach(addTransactionDOM);
+            updateValues();
+        }
+
+        init();
+        form.addEventListener('submit', addTransaction);
+    </script>
+</body>
+</html>
